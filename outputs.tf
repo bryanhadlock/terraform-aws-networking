@@ -1,9 +1,5 @@
-output "vpc_id" {
-  description = "VPC id for Space Coyote"
-  value       = aws_vpc.space_coyote.id
-}
+// Copyright (c) AvantGuard Monitoring Centers. All rights reserved.
 
-output "subnet_id" {
-  description = "Subnet id for Space Coyote"
-  value       = aws_subnet.space_coyote.id
+output "ui_url" {
+  value = aws_s3_bucket.agmonitoringbucket.website_endpoint
 }

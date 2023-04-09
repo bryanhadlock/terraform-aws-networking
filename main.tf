@@ -1,50 +1,101 @@
+// Copyright (c) AvantGuard Monitoring Centers. All rights reserved.
+
 terraform {
-  required_version = ">1.0.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~>3.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
     }
   }
 }
 
-resource "aws_vpc" "space_coyote" {
-  cidr_block           = var.address_space
-  enable_dns_hostnames = true
+locals {
+  build_output_path = "../dist/${var.projectname}"
+}
 
-  tags = {
-    name        = "${var.prefix}-vpc-${var.region}"
-    environment = var.environment
+resource "local_file" "set_environment" {
+  content =  "${var.settingsjson}" 
+  filename = "${local.build_output_path}/assets/settings.json"
+}
+
+resource "aws_s3_bucket" "agmonitoringbucket" {
+  bucket = "${var.username}${var.username == "" ? "" : "-"}agmonitoring-test-state"
+  acl    = "public-read"
+}
+
+resource "aws_s3_bucket_website_configuration" "website_routing" {
+  bucket = aws_s3_bucket.agmonitoringbucket.id
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  routing_rule {
+    condition {
+      http_error_code_returned_equals = 404
+    }
+    redirect {
+      replace_key_with = "index.html"
+    }
   }
 }
 
-resource "aws_subnet" "space_coyote" {
-  vpc_id     = aws_vpc.space_coyote.id
-  cidr_block = var.subnet_prefix
+resource "aws_s3_object" "js_upload" {
+  for_each = fileset("${local.build_output_path}/", "*.js")
+  bucket = aws_s3_bucket.agmonitoringbucket.id
+  acl    = "public-read"
+  key    = each.value
+  content_disposition = "inline"
+  content_type = "text/javascript"
 
-  tags = {
-    name = "${var.prefix}-subnet"
-  }
+  source = "${local.build_output_path}/${each.value}" 
 }
 
-resource "aws_internet_gateway" "space_coyote" {
-  vpc_id = aws_vpc.space_coyote.id
+resource "aws_s3_object" "html_upload" {
+  for_each = fileset("${local.build_output_path}/", "*.html")
+  bucket = aws_s3_bucket.agmonitoringbucket.id
+  acl    = "public-read"
+  key    = each.value
+  content_disposition = "inline"
+  content_type = "text/html"
 
-  tags = {
-    Name = "${var.prefix}-internet-gateway"
-  }
+  source = "${local.build_output_path}/${each.value}" 
 }
 
-resource "aws_route_table" "space_coyote" {
-  vpc_id = aws_vpc.space_coyote.id
+resource "aws_s3_object" "css_upload" {
+  for_each = fileset("${local.build_output_path}/", "*.css")
+  bucket = aws_s3_bucket.agmonitoringbucket.id
+  acl    = "public-read"
+  key    = each.value
+  content_disposition = "inline"
+  content_type = "text/css"
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.space_coyote.id
-  }
+  source = "${local.build_output_path}/${each.value}" 
 }
 
-resource "aws_route_table_association" "space_coyote" {
-  subnet_id      = aws_subnet.space_coyote.id
-  route_table_id = aws_route_table.space_coyote.id
+resource "aws_s3_object" "svg_upload" {
+  for_each = fileset("${local.build_output_path}/assets/", "*.svg")
+  bucket = aws_s3_bucket.agmonitoringbucket.id
+  acl    = "public-read"
+  key    = "assets/${each.value}"
+  content_disposition = "inline"
+  content_type = "image/svg+xml"
+
+  source = "${local.build_output_path}/assets/${each.value}" 
+}
+
+resource "aws_s3_object" "json_upload" {
+  depends_on = [
+    local_file.set_environment
+  ]
+  for_each = fileset("${local.build_output_path}/assets/", "*.json")
+  bucket = aws_s3_bucket.agmonitoringbucket.id
+  acl    = "public-read"
+  key    = "assets/${each.value}"
+  content_disposition = "inline"
+  content_type = "text/json"
+  
+  source = "${local.build_output_path}/assets/${each.value}" 
 }

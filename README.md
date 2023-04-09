@@ -13,6 +13,6 @@ module "web" {
   version = "1.0.0"
   username = var.username
   projectname = "operator.ui"
-  settingsjson = "{ any settins json you want}"  
+  settingsjson = "{ any settings json you want}"  
 }
 ```
